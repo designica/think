@@ -1,1 +1,145 @@
+name: Add Contact Issues to Project
 
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  issues: read
+  contents: read
+  projects: write
+
+jobs:
+  add_to_project:
+    if: >
+      github.event.action == 'opened' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'contact')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add issue to Project (ProjectV2)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            // ラベル条件（opened時はラベルがまだ無いこともあるので、contactが付いていれば投入）
+            const hasContactLabel = (issue.labels || []).some(l => l.name === 'contact');
+            if (!hasContactLabel) {
+              core.info('contact ラベルが無いのでスキップします');
+              return;
+            }
+
+            // ======= ここを設定 =======
+            // プロジェクトの所有者（OrgまたはUserのlogin）
+            const PROJECT_OWNER = 'designica';   // 例: Org名 or ユーザー名
+            // 所有者タイプ: 'org' か 'user'
+            const OWNER_TYPE = 'user';           // 例: 個人プロジェクト → 'user' / 組織プロジェクト → 'org'
+            // プロジェクト番号（ProjectsページURLの末尾 /projects/<number>）
+            const PROJECT_NUMBER = 1;            // 例: 1
+            // 追加時にStatusを設定したい場合（任意）
+            const STATUS_FIELD_NAME = 'Status';  // 既定のカラム名（英語UIだと Status）
+            const STATUS_OPTION_NAME = 'Inbox';  // 例: Inbox / To do など。無ければ自動設定はスキップ
+            // ==========================
+
+            // 1) プロジェクトIDを取得
+            const queryProjectIdOrg = `query($login:String!,$number:Int!){
+              organization(login:$login){ projectV2(number:$number){ id } }
+            }`;
+            const queryProjectIdUser = `query($login:String!,$number:Int!){
+              user(login:$login){ projectV2(number:$number){ id } }
+            }`;
+
+            let projectId = null;
+            if (OWNER_TYPE === 'org') {
+              const res = await github.graphql(queryProjectIdOrg, { login: PROJECT_OWNER, number: PROJECT_NUMBER });
+              projectId = res?.organization?.projectV2?.id || null;
+            } else {
+              const res = await github.graphql(queryProjectIdUser, { login: PROJECT_OWNER, number: PROJECT_NUMBER });
+              projectId = res?.user?.projectV2?.id || null;
+            }
+            if (!projectId) {
+              core.setFailed('ProjectV2 が見つかりません。PROJECT_OWNER/OWNER_TYPE/PROJECT_NUMBER を確認してください。');
+              return;
+            }
+            core.info(`ProjectV2 ID: ${projectId}`);
+
+            // 2) Issue（content）IDを取得（Node ID）
+            const issueNode = await github.graphql(
+              `query($owner:String!,$repo:String!,$number:Int!){
+                 repository(owner:$owner, name:$repo){
+                   issue(number:$number){ id }
+                 }
+               }`,
+              { owner: context.repo.owner, repo: context.repo.repo, number: issue.number }
+            );
+            const contentId = issueNode?.repository?.issue?.id;
+            if (!contentId) {
+              core.setFailed('Issue node ID が取得できませんでした。');
+              return;
+            }
+
+            // 3) プロジェクトに追加
+            const addRes = await github.graphql(
+              `mutation($projectId:ID!,$contentId:ID!){
+                 addProjectV2ItemById(input:{projectId:$projectId, contentId:$contentId}){
+                   item { id }
+                 }
+               }`,
+              { projectId, contentId }
+            );
+            const itemId = addRes?.addProjectV2ItemById?.item?.id;
+            core.info(`Added item id: ${itemId}`);
+
+            // 4) （任意）Statusフィールドを「Inbox」等に設定
+            if (STATUS_FIELD_NAME && STATUS_OPTION_NAME) {
+              // フィールドとオプションのIDを調べる
+              const fieldsRes = await github.graphql(
+                `query($projectId:ID!){
+                   node(id:$projectId){
+                     ... on ProjectV2 {
+                       fields(first:50){
+                         nodes{
+                           ... on ProjectV2FieldCommon { id name dataType }
+                           ... on ProjectV2SingleSelectField {
+                             options { id name }
+                           }
+                         }
+                       }
+                     }
+                   }
+                 }`,
+                { projectId }
+              );
+
+              const fields = fieldsRes.node.fields.nodes;
+              const statusField = fields.find(f => f.name === STATUS_FIELD_NAME);
+              if (!statusField) {
+                core.info(`フィールド "${STATUS_FIELD_NAME}" が見つからないためStatus設定はスキップします。`);
+                return;
+              }
+              // Single-select のみ対応
+              if (statusField.dataType !== 'SINGLE_SELECT') {
+                core.info(`"${STATUS_FIELD_NAME}" は Single-select ではないため設定スキップ。`);
+                return;
+              }
+              const option = (statusField.options || []).find(o => o.name === STATUS_OPTION_NAME);
+              if (!option) {
+                core.info(`オプション "${STATUS_OPTION_NAME}" が見つからないため設定スキップ。`);
+                return;
+              }
+
+              await github.graphql(
+                `mutation($projectId:ID!,$itemId:ID!,$fieldId:ID!,$optionId:String!){
+                   updateProjectV2ItemFieldValue(input:{
+                     projectId:$projectId,
+                     itemId:$itemId,
+                     fieldId:$fieldId,
+                     value:{ singleSelectOptionId:$optionId }
+                   }){
+                     projectV2Item { id }
+                   }
+                 }`,
+                { projectId, itemId, fieldId: statusField.id, optionId: option.id }
+              );
+              core.info(`Status を "${STATUS_OPTION_NAME}" に設定しました。`);
+            }
