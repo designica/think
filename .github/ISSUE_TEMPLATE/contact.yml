@@ -1,0 +1,153 @@
+name: お問い合わせ / Contact
+description: Webサイトやサービスに関するご質問・ご意見・お仕事のご依頼はこちらから。
+title: "【お問い合わせ】＜件名を入力＞"
+labels:
+  - inbox
+  - contact
+assignees:
+  - designica
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ありがとうございます。できるだけ **48時間以内（営業日）** に返信します。
+        返信は基本的に記述いただいたメールアドレス宛に行います。
+
+  - type: input
+    id: name
+    attributes:
+      label: お名前
+      placeholder: 山田太郎
+    validations:
+      required: true
+
+  - type: input
+    id: email
+    attributes:
+      label: メールアドレス
+      placeholder: example@email.com
+      description: 返信先に使います。半角英数字で入力してください。
+    validations:
+      required: true
+      regex: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+
+  - type: input
+    id: subject
+    attributes:
+      label: 件名
+      placeholder: お問い合わせの件名
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 相談区分（任意）
+      options:
+        - 見稽・ご依頼
+        - 共同企画の相談
+        - アクセシビリティ
+  name: お問い合わせ / Contact
+description: Webサイトやサービスに関するご質問・ご意見・お仕事のご依頼はこちらから。
+title: "【お問い合わせ】＜件名を入力＞"
+labels:
+  - inbox
+  - contact
+assignees:
+  - designica
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ありがとうございます。できるだけ **48時間以内（営業日）** に返信します。
+        返信は基本的に記述いただいたメールアドレス宛に行います。
+
+  - type: input
+    id: name
+    attributes:
+      label: お名前
+      placeholder: 山田太郎
+    validations:
+      required: true
+
+  - type: input
+    id: email
+    attributes:
+      label: メールアドレス
+      placeholder: example@email.com
+      description: 返信先に使います。半角英数字で入力してください。
+    validations:
+      required: true
+      regex: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+
+  - type: input
+    id: subject
+    attributes:
+      label: 件名
+      placeholder: お問い合わせの件名
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 相談区分（任意）
+      options:
+        - 見稽・ご依頼
+        - 共同企画の相談
+        - アクセシビリティ
+        - サイト不具合
+        - その他
+    validations:
+      required: false
+
+  - type: textarea
+    id: message
+    attributes:
+      label: メッセージ
+      description: |
+        具体的な内容・背景・期日・ご予算感（任意）などがあるとスムーズです。
+      placeholder: お問い合わせ内容を入力してください
+      render: bash
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: policy
+    attributes:
+      label: 送信前の確認
+      options:
+        - label: 記述した連絡先に返信があることに同意します
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        送信後、**Issues タブ**にチケットが作成されます。機密情報（パスワード等）は記述しないでください。      - サイト不具合
+        - その他
+    validations:
+      required: false
+
+  - type: textarea
+    id: message
+    attributes:
+      label: メッセージ
+      description: |
+        具体的な内容・背景・期日・ご予算感（任意）などがあるとスムーズです。
+      placeholder: お問い合わせ内容を入力してください
+      render: bash
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: policy
+    attributes:
+      label: 送信前の確認
+      options:
+        - label: 記述した連絡先に返信があることに同意します
+          required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        送信後、**Issues タブ**にチケットが作成されます。機密情報（パスワード等）は記述しないでください。
